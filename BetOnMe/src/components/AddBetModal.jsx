@@ -17,12 +17,16 @@ function toDatetimeLocalValue(date) {
 function AddBetModal({ open, onClose, onCreated }) {
   const [charities, setCharities] = useState([]);
   const [form, setForm] = useState(() => {
-    const start = new Date(Date.now() + 60 * 60 * 1000); // +1h
+    // Center the check-in window on "now" so a user creating a goal
+    // and walking straight to the location lands inside the window.
+    const start = new Date();
     return {
       title: "",
       stake: "2",
       targetAt: toDatetimeLocalValue(start),
-      windowMinutes: 30,
+      // ±2h covers "I'm doing it sometime this afternoon" without
+      // making the bet trivially gameable.
+      windowMinutes: 120,
       locationName: "",
       lat: DEFAULT_LAT,
       lng: DEFAULT_LNG,
@@ -137,11 +141,15 @@ function AddBetModal({ open, onClose, onCreated }) {
               <input
                 type="number"
                 min="5"
-                max="240"
+                max="1440"
                 className="input"
                 value={form.windowMinutes}
                 onChange={(e) => update({ windowMinutes: e.target.value })}
               />
+              <div className="muted small" style={{ marginTop: 4 }}>
+                Check-in must happen within ± this many minutes of the
+                target time. 120 = ±2 hours, 720 = anytime that day.
+              </div>
             </div>
           </div>
 
