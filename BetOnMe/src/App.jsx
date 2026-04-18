@@ -7,6 +7,7 @@ import SignIn from "./pages/Sign-in";
 import { AuthProvider } from "./lib/AuthContext";
 import { DevModeProvider } from "./lib/DevModeProvider";
 import SignUp from "./pages/Signup";
+import Landingpage from "./pages/Landingpage";
 
 function App() {
   return (
@@ -15,7 +16,8 @@ function App() {
         <BrowserRouter basename="/app">
           <Routes>
             <Route path="/" element={<Layout />}>
-              <Route index element={<Home />} />
+              <Route index element={<Landingpage />} />
+              <Route path="home" element={<home />} />
               <Route path="bets" element={<Bets />} />
               <Route path="profile" element={<Profile />} />
               <Route path="sign-in" element={<SignIn />} />
