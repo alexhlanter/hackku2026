@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import api from "../lib/api";
+import MapPicker from "./MapPicker";
 import "./AddBetModal.css";
 
-// Hackathon-friendly defaults. Users can pick on a map later; for now we
-// accept manual coords with sensible fallback (University of Kansas rec).
+// Default center: University of Kansas rec center. Users pick on the map.
 const DEFAULT_LAT = 38.9543;
 const DEFAULT_LNG = -95.2535;
 
@@ -52,23 +52,6 @@ function AddBetModal({ open, onClose, onCreated }) {
 
   function update(patch) {
     setForm((f) => ({ ...f, ...patch }));
-  }
-
-  function useCurrentLocation() {
-    if (!navigator.geolocation) {
-      setError("Geolocation not supported in this browser.");
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        update({
-          lat: Number(pos.coords.latitude.toFixed(6)),
-          lng: Number(pos.coords.longitude.toFixed(6)),
-        });
-      },
-      (err) => setError(err.message || "Could not read location"),
-      { enableHighAccuracy: true, timeout: 8000 }
-    );
   }
 
   async function handleSubmit(e) {
@@ -207,47 +190,29 @@ function AddBetModal({ open, onClose, onCreated }) {
             />
           </div>
 
-          <div className="form-grid form-grid-3">
-            <div className="form-row">
-              <label className="label">Latitude</label>
-              <input
-                type="number"
-                step="0.000001"
-                className="input"
-                value={form.lat}
-                onChange={(e) => update({ lat: e.target.value })}
-              />
-            </div>
-            <div className="form-row">
-              <label className="label">Longitude</label>
-              <input
-                type="number"
-                step="0.000001"
-                className="input"
-                value={form.lng}
-                onChange={(e) => update({ lng: e.target.value })}
-              />
-            </div>
-            <div className="form-row">
-              <label className="label">Radius (m)</label>
-              <input
-                type="number"
-                min="20"
-                className="input"
-                value={form.radiusMeters}
-                onChange={(e) => update({ radiusMeters: e.target.value })}
-              />
-            </div>
+          <div className="form-row">
+            <label className="label">Pick location on map</label>
+            <MapPicker
+              value={{ lat: Number(form.lat), lng: Number(form.lng) }}
+              radiusMeters={Number(form.radiusMeters) || 75}
+              onChange={({ lat, lng }) => update({ lat, lng })}
+            />
           </div>
 
-          <button
-            type="button"
-            className="btn"
-            onClick={useCurrentLocation}
-            style={{ alignSelf: "flex-start" }}
-          >
-            Use my current location
-          </button>
+          <div className="form-row">
+            <label className="label">
+              Check-in radius: {form.radiusMeters} m
+            </label>
+            <input
+              type="range"
+              min="20"
+              max="500"
+              step="5"
+              className="range"
+              value={form.radiusMeters}
+              onChange={(e) => update({ radiusMeters: Number(e.target.value) })}
+            />
+          </div>
 
           {error && <div className="error-banner">{error}</div>}
 
