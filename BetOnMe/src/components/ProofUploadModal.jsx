@@ -428,44 +428,115 @@ function ProofUploadModal({ open, goal, onClose, onUploaded }) {
                   <strong>{result.resolution.status}</strong>
                 </div>
               )}
-              {result.vlm?.checked && (
-                <div
-                  className={`vlm-badge ${
-                    result.vlm.matches === true
-                      ? "ok"
-                      : result.vlm.matches === false
-                      ? "bad"
-                      : "neutral"
-                  }`}
-                >
-                  <div className="vlm-title">
-                    {result.vlm.matches === true
-                      ? "AI confirmed"
-                      : result.vlm.matches === false
-                      ? "AI couldn't confirm"
-                      : "AI verdict unclear"}
-                    {typeof result.vlm.confidence === "number" && (
-                      <span className="vlm-conf">
-                        {" · "}
-                        {Math.round(result.vlm.confidence * 100)}%
-                      </span>
+              {result.vlm && (() => {
+                const v = result.vlm;
+                // Hide entirely only when the server explicitly said
+                // "no Gemini key configured" — that's a deploy choice,
+                // not a runtime failure worth surfacing.
+                if (!v.checked && v.reason === "no_api_key") return null;
+
+                if (!v.checked) {
+                  // Translate failure reason codes to friendly copy
+                  // so the user understands *why* there's no AI verdict
+                  // instead of seeing nothing at all.
+                  const failCopy = {
+                    timeout: {
+                      title: "AI check timed out",
+                      body: "Gemma didn't respond in time. Your proof was still verified using GPS + timestamp.",
+                    },
+                    rate_limited: {
+                      title: "AI check skipped (rate-limited)",
+                      body: "We've hit the Gemini API quota for the moment. Your proof was still verified using GPS + timestamp.",
+                    },
+                    network_error: {
+                      title: "AI check skipped (network)",
+                      body: "Couldn't reach the Gemini API. Your proof was still verified using GPS + timestamp.",
+                    },
+                    auth_error: {
+                      title: "AI check misconfigured",
+                      body: "The Gemini API key is missing or invalid on the server. Your proof was still verified using GPS + timestamp.",
+                    },
+                    request_failed: {
+                      title: "AI check failed",
+                      body: "The vision model didn't return a verdict this time. Your proof was still verified using GPS + timestamp.",
+                    },
+                    empty_buffer: {
+                      title: "AI check skipped",
+                      body: "Couldn't read the image bytes for the AI check.",
+                    },
+                  };
+                  const c =
+                    failCopy[v.reason] || {
+                      title: "AI check unavailable",
+                      body: "Skipped this time. Your proof was still verified using GPS + timestamp.",
+                    };
+                  return (
+                    <div className="vlm-badge neutral">
+                      <div className="vlm-title">
+                        {c.title}
+                        {v.attempts > 1 && (
+                          <span className="vlm-conf">
+                            {" · "}
+                            {v.attempts} attempts
+                          </span>
+                        )}
+                      </div>
+                      <div className="muted small">{c.body}</div>
+                      {v.error && (
+                        <details className="error-details">
+                          <summary>Technical details</summary>
+                          <pre>
+                            {JSON.stringify(
+                              { reason: v.reason, error: v.error, attempts: v.attempts },
+                              null,
+                              2
+                            )}
+                          </pre>
+                        </details>
+                      )}
+                    </div>
+                  );
+                }
+
+                // checked: true — model returned, render the verdict.
+                return (
+                  <div
+                    className={`vlm-badge ${
+                      v.matches === true
+                        ? "ok"
+                        : v.matches === false
+                        ? "bad"
+                        : "neutral"
+                    }`}
+                  >
+                    <div className="vlm-title">
+                      {v.matches === true
+                        ? "AI confirmed"
+                        : v.matches === false
+                        ? "AI couldn't confirm"
+                        : "AI verdict unclear"}
+                      {typeof v.confidence === "number" && (
+                        <span className="vlm-conf">
+                          {" · "}
+                          {Math.round(v.confidence * 100)}%
+                        </span>
+                      )}
+                    </div>
+                    {v.label && (
+                      <div className="muted small">saw: {v.label}</div>
                     )}
-                  </div>
-                  {result.vlm.label && (
-                    <div className="muted small">
-                      saw: {result.vlm.label}
+                    {v.rationale && (
+                      <div className="muted small vlm-rationale">
+                        “{v.rationale}”
+                      </div>
+                    )}
+                    <div className="muted small vlm-model">
+                      via {v.model}
+                      {v.attempts > 1 && ` · ${v.attempts} attempts`}
                     </div>
-                  )}
-                  {result.vlm.rationale && (
-                    <div className="muted small vlm-rationale">
-                      “{result.vlm.rationale}”
-                    </div>
-                  )}
-                  <div className="muted small vlm-model">
-                    via {result.vlm.model}
                   </div>
-                </div>
-              )}
+                );
+              })()}
               {(result.resolution?.finishTxHash ||
                 result.resolution?.createTxHash) && (
                 <div className="tx-links small" style={{ marginTop: 8 }}>
