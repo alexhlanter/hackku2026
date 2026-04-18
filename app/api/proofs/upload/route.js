@@ -279,13 +279,34 @@ export async function POST(request) {
     // resolution. Records its verdict on the proof doc and surfaces
     // it to the UI so the demo can show "AI confirmed: looks like a
     // gym". Skipped silently if GEMINI_API_KEY isn't configured.
+    //
+    // Hard outer cap of 22s. The internal call itself can do up to
+    // 2 attempts × 10s = 20s, and we add 2s of slack. This guarantees
+    // that EXIF + Mongo + XRPL EscrowFinish (which can take 5-10s on
+    // testnet) always have the rest of the 60s budget to themselves —
+    // the function will never time out because Gemma was slow.
     let vlm = null;
     if (imageBuffer) {
-      vlm = await verifyImageMatchesGoal({
+      const VLM_HARD_CAP_MS = 22_000;
+      const vlmCall = verifyImageMatchesGoal({
         buffer: imageBuffer,
         mimeType: imageMime,
         goal,
+        timeoutMs: 10_000,
+        maxAttempts: 2,
       });
+      const cap = new Promise((resolve) =>
+        setTimeout(
+          () =>
+            resolve({
+              checked: false,
+              reason: "timeout",
+              error: `outer ${VLM_HARD_CAP_MS}ms cap`,
+            }),
+          VLM_HARD_CAP_MS
+        )
+      );
+      vlm = await Promise.race([vlmCall, cap]);
     }
 
     const createdAt = new Date();
@@ -377,6 +398,8 @@ export async function POST(request) {
 export const runtime = "nodejs";
 // Default Vercel serverless timeout is 10s on Hobby. EXIF parse +
 // Mongo write + XRPL EscrowFinish + optional Gemma 4 vision call
-// can comfortably exceed that on a cold start, so we ask for 30s.
-// Hobby caps this at 60s; Pro at 800s.
-export const maxDuration = 30;
+// can comfortably exceed that on a cold start, so we ask for the
+// Hobby plan maximum (60s). The VLM step is independently capped
+// at 22s above, so the remaining 38s is guaranteed for everything
+// else — the function will not 504 because Gemma was slow.
+export const maxDuration = 60;
