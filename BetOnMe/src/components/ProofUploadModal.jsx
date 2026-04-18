@@ -222,6 +222,44 @@ function ProofUploadModal({ open, goal, onClose, onUploaded }) {
                   <strong>{result.resolution.status}</strong>
                 </div>
               )}
+              {result.vlm?.checked && (
+                <div
+                  className={`vlm-badge ${
+                    result.vlm.matches === true
+                      ? "ok"
+                      : result.vlm.matches === false
+                      ? "bad"
+                      : "neutral"
+                  }`}
+                >
+                  <div className="vlm-title">
+                    {result.vlm.matches === true
+                      ? "AI confirmed"
+                      : result.vlm.matches === false
+                      ? "AI couldn't confirm"
+                      : "AI verdict unclear"}
+                    {typeof result.vlm.confidence === "number" && (
+                      <span className="vlm-conf">
+                        {" · "}
+                        {Math.round(result.vlm.confidence * 100)}%
+                      </span>
+                    )}
+                  </div>
+                  {result.vlm.label && (
+                    <div className="muted small">
+                      saw: {result.vlm.label}
+                    </div>
+                  )}
+                  {result.vlm.rationale && (
+                    <div className="muted small vlm-rationale">
+                      “{result.vlm.rationale}”
+                    </div>
+                  )}
+                  <div className="muted small vlm-model">
+                    via {result.vlm.model}
+                  </div>
+                </div>
+              )}
               {(result.resolution?.finishTxHash ||
                 result.resolution?.createTxHash) && (
                 <div className="tx-links small" style={{ marginTop: 8 }}>

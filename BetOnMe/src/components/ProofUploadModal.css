@@ -88,3 +88,51 @@
   background: rgba(124, 156, 255, 0.24);
   border-color: var(--accent);
 }
+
+.vlm-badge {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid;
+  font-size: 13px;
+}
+
+.vlm-badge.ok {
+  background: rgba(124, 156, 255, 0.1);
+  border-color: rgba(124, 156, 255, 0.4);
+  color: #d3dcff;
+}
+
+.vlm-badge.bad {
+  background: rgba(248, 113, 113, 0.1);
+  border-color: rgba(248, 113, 113, 0.4);
+  color: #fda4a4;
+}
+
+.vlm-badge.neutral {
+  background: rgba(148, 163, 184, 0.08);
+  border-color: rgba(148, 163, 184, 0.3);
+  color: #c8d2e0;
+}
+
+.vlm-title {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 2px;
+}
+
+.vlm-conf {
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+.vlm-rationale {
+  font-style: italic;
+  margin-top: 2px;
+}
+
+.vlm-model {
+  margin-top: 4px;
+  opacity: 0.55;
+  font-size: 11px;
+}

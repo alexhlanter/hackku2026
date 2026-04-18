@@ -8,6 +8,7 @@ import { getDb } from "@/lib/mongodb";
 import { verifyProof } from "@/lib/verification";
 import { resolveGoal } from "@/lib/resolve";
 import { getSessionUser } from "@/lib/auth";
+import { verifyImageMatchesGoal } from "@/lib/vlm";
 
 // Accepts multipart/form-data with these fields:
 //   - file     (required) the image File blob
@@ -154,10 +155,16 @@ export async function POST(request) {
     // ("client"). Useful for audits and demo transparency.
     let gpsSource = null;
     let capturedAtSource = null;
+    // Hoisted so the optional VLM step below can re-use the bytes
+    // and mime type after the EXIF / disk-write block.
+    let imageBuffer = null;
+    let imageMime = null;
 
     if (imageFile) {
       const arrayBuffer = await imageFile.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
+      imageBuffer = buffer;
+      imageMime = imageFile.type || null;
 
       // exifr.parse returns { GPSLatitude, GPSLongitude, DateTimeOriginal, ... }
       // with GPS already converted to decimal. Some phones strip GPS on web
@@ -232,6 +239,21 @@ export async function POST(request) {
     }
 
     const verdict = verifyProof(goal, { gps, capturedAt });
+
+    // Optional: ask Gemma 4 (vision) whether the image plausibly
+    // depicts the goal scene. Advisory only — does NOT affect goal
+    // resolution. Records its verdict on the proof doc and surfaces
+    // it to the UI so the demo can show "AI confirmed: looks like a
+    // gym". Skipped silently if GEMINI_API_KEY isn't configured.
+    let vlm = null;
+    if (imageBuffer) {
+      vlm = await verifyImageMatchesGoal({
+        buffer: imageBuffer,
+        mimeType: imageMime,
+        goal,
+      });
+    }
+
     const createdAt = new Date();
 
     await proofs.createIndex({ goalId: 1 });
@@ -251,6 +273,7 @@ export async function POST(request) {
         checkedAt: createdAt,
         distanceMeters: verdict.distanceMeters,
       },
+      vlm,
     };
 
     const insertResult = await proofs.insertOne(doc);
@@ -303,6 +326,7 @@ export async function POST(request) {
           checkedAt: doc.verification.checkedAt.toISOString(),
           distanceMeters: doc.verification.distanceMeters,
         },
+        vlm: doc.vlm,
         resolution,
       },
       { status: 201 }
