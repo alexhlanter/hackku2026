@@ -26,7 +26,7 @@
     text-align: center;
     padding: 3rem 2rem 3rem;
     width: 100%;
-    background-image: url(https://t3.ftcdn.net/jpg/04/23/31/98/360_F_423319896_gEwTKhwlPnKJVjyh4RQub7kL4k9mzzlW.jpg);
+    background-image: url(https://cdn.bitpanda.com/media/XRP_RALLY.jpg);
     z-index: 0;
   }
   
@@ -53,6 +53,8 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    padding: 50px;
+
   }
   
   .hero .headline {
@@ -69,7 +71,7 @@
     font-size: 16px;
     color: white;
     line-height: 1.7;
-    max-width: 700px;
+    width: 100%;
     margin: 0 auto;
     text-align: center;
     font-family: "Archivo Black", sans-serif;
@@ -131,25 +133,25 @@
   }
   
   /* Additional info */
-  .contact-section {
-    padding: 4rem 2rem;
-    max-width: 600px;
-    margin: 0 auto;
-  }
-  
   .contact-section h2 {
-    font-size: 24px;
-    font-weight: 500;
-    color: #111827;
-    margin-bottom: 0.5rem;
+    padding: 4rem 2rem;
+    width:100%;
+    margin: 0 auto;
+    text-align: center;
+    text-decoration: underline;
   }
   
   .contact-section p {
     font-size: 14px;
-    color: #6b7280;
+    color: rgb(86, 86, 86);
     margin-bottom: 2rem;
+    text-align: center;
+    width:100%;
+    padding: 0 10px;
   }
-  
+  .contact-section ul {
+
+  }
   .form-group {
     display: flex;
     flex-direction: column;
@@ -163,18 +165,6 @@
     color: #374151;
   }
   
-  .form-group input,
-  .form-group textarea {
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    padding: 10px 14px;
-    font-size: 14px;
-    color: #111827;
-    background: #fff;
-    outline: none;
-    width: 100%;
-  }
-  
   .form-group input:focus,
   .form-group textarea:focus {
     border-color: #6b7280;
@@ -185,15 +175,6 @@
     min-height: 120px;
   }
   
-  .btn-primary {
-    background: #111827;
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    padding: 10px 24px;
-    font-size: 14px;
-    cursor: pointer;
-  }
   
   /* Footer */
   .footer {
