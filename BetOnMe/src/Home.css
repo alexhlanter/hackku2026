@@ -1,0 +1,42 @@
+.container {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 20px;
+    padding: 20px;
+    height: 100vh;
+    background: #0f172a;
+    color: white;
+  }
+  
+  /* General box styling */
+  .box {
+    background: #1e293b;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  
+  /* Large goal box */
+  .large {
+    grid-row: span 2;
+    min-height: 400px;
+  }
+  
+  /* Right column layout */
+  .right-column {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  /* Small stacked boxes */
+  .small {
+    height: 180px;
+  }
+  
+  /* Bottom wide box */
+  .wide {
+    grid-column: 1 / -1;
+    height: 150px;
+  }
