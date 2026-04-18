@@ -167,11 +167,27 @@ export async function POST(request) {
       imageMime = imageFile.type || null;
 
       // exifr.parse returns { GPSLatitude, GPSLongitude, DateTimeOriginal, ... }
-      // with GPS already converted to decimal. Some phones strip GPS on web
-      // upload — that's caught below.
+      // with GPS already converted to decimal. We also explicitly ask for
+      // OffsetTimeOriginal / OffsetTime — without those the EXIF capture
+      // time is timezone-naive (Android & older iOS especially), and JS
+      // would silently interpret it as the *server's* local time, which
+      // on Vercel means UTC. That's the bug that made Android friends'
+      // proofs land hours outside the goal's window.
       let exifData = {};
       try {
-        exifData = (await exifr.parse(buffer, { gps: true })) || {};
+        exifData =
+          (await exifr.parse(buffer, {
+            gps: true,
+            pick: [
+              "DateTimeOriginal",
+              "CreateDate",
+              "ModifyDate",
+              "OffsetTimeOriginal",
+              "OffsetTime",
+              "GPSLatitude",
+              "GPSLongitude",
+            ],
+          })) || {};
       } catch {
         exifData = {};
       }
@@ -182,12 +198,21 @@ export async function POST(request) {
         gps = { lat, lng, accuracyMeters: null };
         gpsSource = "exif";
       }
-      if (exifData.DateTimeOriginal) {
-        capturedAt = new Date(exifData.DateTimeOriginal);
-        capturedAtSource = "exif";
-      } else if (exifData.CreateDate) {
-        capturedAt = new Date(exifData.CreateDate);
-        capturedAtSource = "exif";
+
+      // EXIF capture time is only trustworthy if the file also carries
+      // an explicit timezone offset (OffsetTimeOriginal). Otherwise we
+      // record it but leave the resolved capturedAt for the client step
+      // below to set, which always uses an ISO-8601 timestamp.
+      const exifTzAware =
+        !!(exifData.OffsetTimeOriginal || exifData.OffsetTime);
+      const rawExifDate =
+        exifData.DateTimeOriginal || exifData.CreateDate || null;
+      if (rawExifDate) {
+        const parsed = new Date(rawExifDate);
+        if (!Number.isNaN(parsed.getTime())) {
+          capturedAt = parsed;
+          capturedAtSource = exifTzAware ? "exif_tz" : "exif_naive";
+        }
       }
 
       // Disk persistence is best-effort. Vercel serverless mounts a
@@ -230,9 +255,18 @@ export async function POST(request) {
         gpsSource = "client";
       }
     }
-    if (!capturedAt && clientCapturedAtRaw) {
+    // Client-submit timestamp wins over EXIF when both are available.
+    // EXIF capture time without an OffsetTime field is timezone-naive,
+    // and Android phones routinely strip the offset — interpreting that
+    // string as UTC on a Vercel server can throw the comparison off by
+    // multiple hours and yank otherwise-valid check-ins outside the
+    // goal's time window. The client ISO timestamp is unambiguous and
+    // we already trust the device for the GPS reading.
+    if (clientCapturedAtRaw) {
       const parsed = new Date(clientCapturedAtRaw);
       if (!Number.isNaN(parsed.getTime())) {
+        // Keep the EXIF reading on the proof doc as audit data, but
+        // use the client time for the verification verdict below.
         capturedAt = parsed;
         capturedAtSource = "client";
       }
