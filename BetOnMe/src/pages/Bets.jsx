@@ -274,7 +274,7 @@ function Bets() {
           onClick={() => setModalOpen(true)}
           title="Add bet"
         >
-          +
+        + 
         </button>
       </div>
 
