@@ -1,3 +1,4 @@
+// imports the xrpl client and wallet as well as the types from the types folder
 import { Client, Wallet, xrpToDrops } from "xrpl";
 import type {
   CancelEscrowParams,
@@ -7,6 +8,7 @@ import type {
   FinishEscrowParams,
 } from "../types/index.js";
 
+// the testnet websocket url for the xrpl client
 const TESTNET_WS = "wss://s.altnet.rippletest.net:51233";
 
 // XRPL timestamps are seconds since Jan 1, 2000 UTC.
@@ -14,7 +16,7 @@ const TESTNET_WS = "wss://s.altnet.rippletest.net:51233";
 // Difference is exactly 946,684,800 seconds.
 const RIPPLE_EPOCH_OFFSET = 946_684_800;
 
-function dateToRippleTime(date: Date): number {
+function dateToRippleTime(date: Date): number { 
   const unixSeconds = Math.floor(date.getTime() / 1000);
   const rippleTime = unixSeconds - RIPPLE_EPOCH_OFFSET;
   if (rippleTime <= 0) {
