@@ -14,20 +14,36 @@ const ALLOWED = [
 // iOS Safari (and WhatsApp/iMessage pipelines) strip EXIF GPS from
 // uploaded photos. We ask the browser for live coordinates as a
 // fallback so a real on-location check-in still verifies.
+//
+// Returns { status, location, errorCode } so the caller can show a
+// real reason when the prompt is silently failing (most often:
+// permission was denied earlier in the session and Safari refuses
+// to re-prompt).
+//   status: "ready" | "denied" | "unavailable" | "timeout" | "unsupported"
 function getBrowserLocation(timeoutMs = 8000) {
   return new Promise((resolve) => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
-      resolve(null);
+      resolve({ status: "unsupported", location: null });
       return;
     }
     navigator.geolocation.getCurrentPosition(
       (pos) =>
         resolve({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-          accuracy: pos.coords.accuracy ?? null,
+          status: "ready",
+          location: {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy: pos.coords.accuracy ?? null,
+          },
         }),
-      () => resolve(null),
+      (err) => {
+        // PositionError codes:
+        // 1 = PERMISSION_DENIED, 2 = POSITION_UNAVAILABLE, 3 = TIMEOUT
+        const code = err?.code ?? 0;
+        const status =
+          code === 1 ? "denied" : code === 3 ? "timeout" : "unavailable";
+        resolve({ status, location: null, errorCode: code });
+      },
       { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 60_000 }
     );
   });
@@ -60,6 +76,18 @@ function ProofUploadModal({ open, goal, onClose, onUploaded }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
+  // Geolocation state, fetched eagerly when the modal opens so the
+  // user sees up-front whether their browser will hand us coords —
+  // not after they've already picked a photo and tapped submit.
+  const [locStatus, setLocStatus] = useState("idle");
+  const [loc, setLoc] = useState(null);
+
+  const requestLocation = async () => {
+    setLocStatus("prompting");
+    const { status, location } = await getBrowserLocation();
+    setLocStatus(status);
+    setLoc(location);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -67,6 +95,16 @@ function ProofUploadModal({ open, goal, onClose, onUploaded }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
+
+  // Kick off the geolocation prompt as soon as the modal opens so the
+  // user can fix permissions before they pick a photo.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (!open) return;
+    if (locStatus !== "idle") return;
+    requestLocation();
+  }, [open, locStatus]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Reset all modal state when it's closed so a reopen starts clean.
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -76,6 +114,8 @@ function ProofUploadModal({ open, goal, onClose, onUploaded }) {
       setError(null);
       setResult(null);
       setSubmitting(false);
+      setLocStatus("idle");
+      setLoc(null);
     }
   }, [open]);
   /* eslint-enable react-hooks/set-state-in-effect */
@@ -125,15 +165,20 @@ function ProofUploadModal({ open, goal, onClose, onUploaded }) {
 
     setSubmitting(true);
     try {
-      // Ask for live GPS while we prepare the request. If the user
-      // denies/times out, we just submit without it — EXIF may still
-      // work, and if it doesn't the backend returns a clear error.
-      const loc = await getBrowserLocation();
-      if (loc) {
-        fd.append("clientLat", String(loc.lat));
-        fd.append("clientLng", String(loc.lng));
-        if (loc.accuracy !== null)
-          fd.append("clientAccuracy", String(loc.accuracy));
+      // Prefer the location captured eagerly when the modal opened.
+      // If we never got it (or the user just granted permission and
+      // hasn't retried), make one last attempt now so the request
+      // still has the freshest possible coords.
+      let useLoc = loc;
+      if (!useLoc) {
+        const { location } = await getBrowserLocation();
+        useLoc = location;
+      }
+      if (useLoc) {
+        fd.append("clientLat", String(useLoc.lat));
+        fd.append("clientLng", String(useLoc.lng));
+        if (useLoc.accuracy !== null)
+          fd.append("clientAccuracy", String(useLoc.accuracy));
         fd.append("clientCapturedAt", new Date().toISOString());
       }
 
@@ -167,6 +212,47 @@ function ProofUploadModal({ open, goal, onClose, onUploaded }) {
         </div>
 
         <form onSubmit={handleSubmit} className="modal-form">
+          <div className={`loc-banner loc-${locStatus}`}>
+            {locStatus === "prompting" && (
+              <span>📍 Requesting your location…</span>
+            )}
+            {locStatus === "ready" && loc && (
+              <span>
+                📍 Location ready
+                {typeof loc.accuracy === "number" && (
+                  <span className="muted small">
+                    {" "}
+                    · ±{Math.round(loc.accuracy)} m
+                  </span>
+                )}
+              </span>
+            )}
+            {locStatus === "denied" && (
+              <div>
+                <strong>📍 Location blocked.</strong>
+                <div className="muted small">
+                  On iPhone: Settings → Safari → Location → Allow, then
+                  reload this page. On Chrome: tap the address bar lock
+                  icon → Permissions → Location → Allow.
+                </div>
+              </div>
+            )}
+            {(locStatus === "timeout" ||
+              locStatus === "unavailable" ||
+              locStatus === "unsupported") && (
+              <div>
+                <strong>📍 Couldn't get your location.</strong>
+                <button
+                  type="button"
+                  className="btn btn-ghost loc-retry"
+                  onClick={requestLocation}
+                >
+                  Try again
+                </button>
+              </div>
+            )}
+          </div>
+
           <div className="form-row">
             <label className="label">Photo</label>
             <label className="file-drop">

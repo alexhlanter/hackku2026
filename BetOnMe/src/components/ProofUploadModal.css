@@ -136,3 +136,42 @@
   opacity: 0.55;
   font-size: 11px;
 }
+
+.loc-banner {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.loc-banner.loc-prompting,
+.loc-banner.loc-idle {
+  background: rgba(148, 163, 184, 0.08);
+  border-color: rgba(148, 163, 184, 0.3);
+  color: #c8d2e0;
+}
+
+.loc-banner.loc-ready {
+  background: rgba(74, 222, 128, 0.08);
+  border-color: rgba(74, 222, 128, 0.3);
+  color: #bff5d4;
+}
+
+.loc-banner.loc-denied,
+.loc-banner.loc-timeout,
+.loc-banner.loc-unavailable,
+.loc-banner.loc-unsupported {
+  background: rgba(248, 113, 113, 0.08);
+  border-color: rgba(248, 113, 113, 0.3);
+  color: #fda4a4;
+  align-items: flex-start;
+}
+
+.loc-retry {
+  margin-top: 6px;
+  padding: 2px 10px;
+  font-size: 12px;
+}
