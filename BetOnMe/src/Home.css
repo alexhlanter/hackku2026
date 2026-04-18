@@ -1,7 +1,6 @@
 .container {
     display: grid;
     grid-template-columns: 2fr 1fr;
-    grid-template-rows: auto auto;
     gap: 20px;
     padding: 20px;
     height: 100vh;
@@ -9,34 +8,36 @@
     color: white;
   }
   
-  /* General box styling */
+  /* LEFT COLUMN STACK */
+  .left {
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    gap: 20px;
+  }
+  
+  /* RIGHT COLUMN STACK */
+  .right {
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    gap: 20px;
+  }
+  
+  /* BASE BOX STYLE */
   .box {
     background: #1e293b;
     border-radius: 12px;
     padding: 20px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  }
-  
-  /* Large goal box */
-  .large {
-    grid-row: span 2;
-    min-height: 400px;
-  }
-  
-  /* Right column layout */
-  .right-column {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    justify-content: center;
   }
   
-  /* Small stacked boxes */
-  .small {
-    height: 180px;
+  /* optional sizing emphasis */
+  .goal {
+    font-size: 1.2rem;
   }
   
-  /* Bottom wide box */
-  .wide {
-    grid-column: 1 / -1;
-    height: 150px;
+  .week {
+    opacity: 0.9;
   }
