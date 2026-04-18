@@ -17,6 +17,9 @@
 /.next/
 /out/
 
+# BetOnMe Vite build output copied into Next's public/ during `npm run build`
+/public/app/
+
 # production
 /build
 

@@ -55,6 +55,9 @@ export const api = {
 
   // --- charities ---
   charities: () => request("/api/charities"),
+
+  // --- wallet ---
+  wallet: () => request("/api/wallet"),
 };
 
 export default api;

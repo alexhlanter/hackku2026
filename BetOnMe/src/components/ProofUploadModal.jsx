@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../lib/api";
+import { txUrl } from "../lib/xrplExplorer";
 import "./ProofUploadModal.css";
 
 const ALLOWED = [
@@ -160,6 +161,31 @@ function ProofUploadModal({ open, goal, onClose, onUploaded }) {
                 <div className="small" style={{ marginTop: 6 }}>
                   Goal auto-resolved to{" "}
                   <strong>{result.resolution.status}</strong>
+                </div>
+              )}
+              {(result.resolution?.finishTxHash ||
+                result.resolution?.createTxHash) && (
+                <div className="tx-links small" style={{ marginTop: 8 }}>
+                  {result.resolution.finishTxHash && (
+                    <a
+                      className="tx-chip"
+                      href={txUrl(result.resolution.finishTxHash)}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                    >
+                      View payout on-chain ↗
+                    </a>
+                  )}
+                  {result.resolution.createTxHash && (
+                    <a
+                      className="tx-chip"
+                      href={txUrl(result.resolution.createTxHash)}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                    >
+                      View escrow on-chain ↗
+                    </a>
+                  )}
                 </div>
               )}
             </div>

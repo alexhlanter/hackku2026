@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import AddBetModal from "../components/AddBetModal";
 import ProofUploadModal from "../components/ProofUploadModal";
 import api from "../lib/api";
 import { useDevMode } from "../lib/devModeCore";
+import { txUrl } from "../lib/xrplExplorer";
 import "./Bets.css";
 
 function useNow(intervalMs = 60_000) {
@@ -54,14 +55,51 @@ function fmtDate(iso) {
   });
 }
 
+const FILTERS = [
+  { id: "all", label: "All", match: () => true },
+  { id: "active", label: "Active", match: (g) => g.status === "active" },
+  { id: "succeeded", label: "Succeeded", match: (g) => g.status === "succeeded" },
+  { id: "failed", label: "Failed", match: (g) => g.status === "failed" },
+];
+
+function TxChip({ hash, label, title }) {
+  const href = txUrl(hash);
+  if (!href) return null;
+  return (
+    <a
+      className="tx-chip"
+      href={href}
+      target="_blank"
+      rel="noreferrer noopener"
+      title={title || hash}
+    >
+      {label} ↗
+    </a>
+  );
+}
+
 function Bets() {
   const { goals, goalsLoading, goalsError, refreshGoals } = useOutletContext();
   const [modalOpen, setModalOpen] = useState(false);
   const [proofGoal, setProofGoal] = useState(null);
   const [rowErr, setRowErr] = useState(null);
   const [busyId, setBusyId] = useState(null);
+  const [filter, setFilter] = useState("all");
   const now = useNow();
   const { enabled: devMode, adminSecret } = useDevMode();
+
+  const counts = useMemo(() => {
+    const out = {};
+    for (const f of FILTERS) {
+      out[f.id] = goals.filter(f.match).length;
+    }
+    return out;
+  }, [goals]);
+
+  const visibleGoals = useMemo(() => {
+    const f = FILTERS.find((x) => x.id === filter) || FILTERS[0];
+    return goals.filter(f.match);
+  }, [goals, filter]);
 
   async function forceResolve(goal, outcome) {
     setRowErr(null);
@@ -79,6 +117,10 @@ function Bets() {
       setBusyId(null);
     }
   }
+
+  const emptyLabel = goals.length === 0
+    ? "No bets yet. Place your first one to get started."
+    : `No ${filter === "all" ? "" : filter + " "}bets.`;
 
   return (
     <div className="page bets">
@@ -100,6 +142,21 @@ function Bets() {
           active bets.
         </div>
       )}
+
+      <div className="filter-chips" role="tablist" aria-label="Filter bets">
+        {FILTERS.map((c) => (
+          <button
+            key={c.id}
+            role="tab"
+            aria-selected={filter === c.id}
+            className={`chip ${filter === c.id ? "active" : ""}`}
+            onClick={() => setFilter(c.id)}
+          >
+            {c.label}
+            <span className="chip-count">{counts[c.id]}</span>
+          </button>
+        ))}
+      </div>
 
       <div className="box table-wrap">
         <table className="bets-table">
@@ -124,18 +181,18 @@ function Bets() {
                   Loading…
                 </td>
               </tr>
-            ) : goals.length === 0 ? (
+            ) : visibleGoals.length === 0 ? (
               <tr>
                 <td
                   colSpan={6}
                   className="muted"
                   style={{ textAlign: "center", padding: 24 }}
                 >
-                  No bets yet. Place your first one to get started.
+                  {emptyLabel}
                 </td>
               </tr>
             ) : (
-              goals.map((g) => (
+              visibleGoals.map((g) => (
                 <tr key={g.id}>
                   <td>
                     <div className="goal-cell">
@@ -143,6 +200,18 @@ function Bets() {
                       {g.location?.name && (
                         <span className="muted small">@ {g.location.name}</span>
                       )}
+                      <div className="tx-chips">
+                        <TxChip
+                          hash={g.escrow?.createTxHash}
+                          label="escrow tx"
+                          title="View EscrowCreate on the XRPL testnet explorer"
+                        />
+                        <TxChip
+                          hash={g.escrow?.finishTxHash}
+                          label="payout tx"
+                          title="View EscrowFinish (payout to charity) on the XRPL testnet explorer"
+                        />
+                      </div>
                     </div>
                   </td>
                   <td>

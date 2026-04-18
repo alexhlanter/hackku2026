@@ -11,7 +11,7 @@ function App() {
   return (
     <DevModeProvider>
       <AuthProvider>
-        <BrowserRouter>
+        <BrowserRouter basename="/app">
           <Routes>
             <Route path="/" element={<Layout />}>
               <Route index element={<Home />} />

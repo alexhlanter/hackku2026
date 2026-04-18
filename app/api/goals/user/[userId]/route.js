@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { getDb } from "@/lib/mongodb";
 import { getSessionUser } from "@/lib/auth";
+import { expireUserGoalsIfDue } from "@/lib/expire";
 
 function toIsoOrNull(value) {
   if (!value) return null;
@@ -60,6 +61,10 @@ export async function GET(request, context) {
   try {
     const db = await getDb();
     const goals = db.collection("goals");
+
+    // Lazy-expire past-due active goals before reading. Same budget as
+    // /api/goals/mine so behavior is consistent.
+    await expireUserGoalsIfDue(db, new ObjectId(userId), { limit: 5 });
 
     const cursor = goals
       .find({ userId: new ObjectId(userId) })

@@ -8,6 +8,10 @@ import path from 'path'
 //   - BetOnMe/:    npm run dev   (Vite on :5173)
 // Visit http://localhost:5173 and fetch('/api/...') will reach Next.
 export default defineConfig({
+  // Served from /app on the unified Next.js deployment so all generated
+  // asset URLs (e.g. /app/assets/index-xxx.js) match where the files
+  // actually live inside Next's public/ folder.
+  base: '/app/',
   plugins: [react()],
   resolve: {
     alias: {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/mongodb";
 import { getSessionUser } from "@/lib/auth";
+import { expireUserGoalsIfDue } from "@/lib/expire";
 
 // Convenience endpoint so the frontend never has to echo userId back.
 // Equivalent to GET /api/goals/user/<sessionUser.id>.
@@ -50,6 +51,11 @@ export async function GET(request) {
 
   try {
     const db = await getDb();
+
+    // Lazy-expire past-due active goals before reading. Caps at 5 per call
+    // so XRPL latency is bounded; per-goal errors are logged and skipped.
+    await expireUserGoalsIfDue(db, sessionUser._id, { limit: 5 });
+
     const list = await db
       .collection("goals")
       .find({ userId: sessionUser._id })

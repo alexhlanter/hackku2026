@@ -62,3 +62,29 @@
   font-size: 15px;
   margin-bottom: 2px;
 }
+
+.proof-modal .tx-links {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.proof-modal .tx-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: rgba(124, 156, 255, 0.14);
+  border: 1px solid rgba(124, 156, 255, 0.35);
+  color: #c6d2ff;
+  text-decoration: none;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.proof-modal .tx-chip:hover {
+  background: rgba(124, 156, 255, 0.24);
+  border-color: var(--accent);
+}

@@ -213,6 +213,12 @@ export async function POST(request) {
           resolvedAt: resolvedGoal?.resolvedAt
             ? new Date(resolvedGoal.resolvedAt).toISOString()
             : null,
+          // Surface on-chain hashes so the UI can deep-link to the XRPL
+          // testnet explorer in the success banner. On the "succeeded"
+          // path there is no finishTxHash yet (that's the later refund),
+          // but createTxHash proves the stake really was locked.
+          createTxHash: resolvedGoal?.escrow?.createTxHash ?? null,
+          finishTxHash: resolvedGoal?.escrow?.finishTxHash ?? null,
         };
       } catch (resolveErr) {
         // We still return the proof — resolution failure shouldn't throw

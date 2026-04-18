@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run build:betonme && next build",
+    "build:betonme": "npm --prefix BetOnMe ci && npm --prefix BetOnMe run build && rm -rf public/app && cp -R BetOnMe/dist public/app",
     "start": "next start",
     "lint": "eslint"
   },
