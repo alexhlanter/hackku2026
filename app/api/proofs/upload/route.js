@@ -341,3 +341,8 @@ export async function POST(request) {
 }
 
 export const runtime = "nodejs";
+// Default Vercel serverless timeout is 10s on Hobby. EXIF parse +
+// Mongo write + XRPL EscrowFinish + optional Gemma 4 vision call
+// can comfortably exceed that on a cold start, so we ask for 30s.
+// Hobby caps this at 60s; Pro at 800s.
+export const maxDuration = 30;
