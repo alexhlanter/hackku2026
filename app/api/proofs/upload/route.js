@@ -165,12 +165,26 @@ export async function POST(request) {
         capturedAt = new Date(exifData.CreateDate);
       }
 
-      await ensureUploadDir();
-      const ext = extFromMime(imageFile.type);
-      const filename = `${crypto.randomUUID()}${ext}`;
-      const diskPath = path.join(UPLOAD_DIR, filename);
-      await fs.writeFile(diskPath, buffer);
-      imageUrl = `/uploads/${filename}`;
+      // Disk persistence is best-effort. Vercel serverless mounts a
+      // read-only filesystem (only /tmp is writable, and even that is
+      // ephemeral per invocation), so writes will throw EROFS / EACCES.
+      // EXIF parsing already happened in-memory above, so verification
+      // and goal resolution still work — we just don't keep the image
+      // file. For a real product, swap this for Vercel Blob / S3.
+      try {
+        await ensureUploadDir();
+        const ext = extFromMime(imageFile.type);
+        const filename = `${crypto.randomUUID()}${ext}`;
+        const diskPath = path.join(UPLOAD_DIR, filename);
+        await fs.writeFile(diskPath, buffer);
+        imageUrl = `/uploads/${filename}`;
+      } catch (writeErr) {
+        console.warn(
+          "[proofs/upload] could not persist image to disk; continuing without it:",
+          writeErr?.message || writeErr
+        );
+        imageUrl = null;
+      }
     } else {
       imageUrl = imageUrlOverride ?? null;
     }
