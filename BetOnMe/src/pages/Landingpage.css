@@ -1,0 +1,97 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  
+  .lp {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+  }
+  
+  /* Hero */
+  .hero {
+    text-align: center;
+    padding: 4rem 0 3rem;
+  }
+  
+  .title h1 {
+    font-size: 36px;
+    font-weight: 500;
+    line-height: 1.2;
+    margin-bottom: 1rem;
+  }
+  
+  .hero p {
+    font-size: 16px;
+    color: #6b7280;
+    line-height: 1.7;
+    max-width: 480px;
+    margin: 0 auto 2rem;
+  }
+
+  /* Features */
+  .features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    padding: 2rem 0;
+  }
+  
+  .divider {
+    border: none;
+    border-top: 1px solid #e5e7eb;
+    margin: 1rem 0;
+  }
+  
+  /* Testimonial */
+  .testimonial {
+    text-align: center;
+    padding: 2.5rem 0;
+  }
+  
+  .testimonial blockquote {
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 1.5;
+    max-width: 480px;
+    margin: 0 auto 1rem;
+    font-style: italic;
+  }
+  
+  .testimonial cite {
+    font-size: 13px;
+    color: #6b7280;
+    font-style: normal;
+  }
+  
+  /* CTA */
+  .cta {
+    text-align: center;
+    background: #f9fafb;
+    border-radius: 12px;
+    padding: 3rem 2rem;
+    margin: 1rem 0 2rem;
+  }
+  
+  .cta h2 {
+    font-size: 24px;
+    font-weight: 500;
+    margin-bottom: 0.75rem;
+  }
+  
+  .cta p {
+    font-size: 15px;
+    color: #6b7280;
+    margin-bottom: 1.5rem;
+  }
+  
+  /* Footer */
+  .footer {
+    text-align: center;
+    padding: 1.5rem 0;
+    border-top: 1px solid #e5e7eb;
+    font-size: 13px;
+    color: #6b7280;
+  }

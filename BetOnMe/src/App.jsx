@@ -18,7 +18,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Layout />}>
               <Route index element={<Landingpage />} />
-              <Route path="home" element={<home />} />
+              <Route path="home" element={<Home />} />
               <Route path="bets" element={<Bets />} />
               <Route path="profile" element={<Profile />} />
               <Route path="sign-in" element={<SignIn />} />
