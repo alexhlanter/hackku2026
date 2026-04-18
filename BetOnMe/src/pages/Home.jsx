@@ -71,6 +71,16 @@ function Home() {
     const total = goals.length;
     const done = goals.filter((g) => g.status === "succeeded").length;
     const failed = goals.filter((g) => g.status === "failed").length;
+
+    //Calculate streak of goals hit
+    const sorted = [...goals].sort(
+      (a,b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
+    let streak = 0;
+    for (const g of sorted) {
+      if (g.status === "succeeded") streak++;
+      else if (g.status === "failed") break;
+    }
     return { total, done, failed };
   }, [goals]);
 
@@ -203,11 +213,14 @@ function Home() {
             </div>
           </section>
 
-          <section className="box greeting">
-            <div className="section-title">Welcome</div>
+          <section className="streak box">
+            <div className="section-title">Current Streak</div>
             <div>{user?.displayName || "Hello"} 👋</div>
             <div className="muted">
-              Click your profile to open wallet & bet history.
+              {stats.streak <= 1
+              ? "No streak yet... Don't lose hope!!"
+              : `${user?.displayName || "Your"}'s ${stats.streak} goal streak!`
+              }
             </div>
           </section>
         </aside>
