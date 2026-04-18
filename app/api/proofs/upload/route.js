@@ -1,56 +1,95 @@
 import { NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
+import { promises as fs } from "node:fs";
+import path from "node:path";
+import crypto from "node:crypto";
+import exifr from "exifr";
 import { getDb } from "@/lib/mongodb";
+import { verifyProof } from "@/lib/verification";
+import { resolveGoal } from "@/lib/resolve";
 
-function isNonEmptyString(value) {
-  return typeof value === "string" && value.trim().length > 0;
+// Accepts multipart/form-data with these fields:
+//   - file     (required) the image File blob
+//   - goalId   (required) MongoDB ObjectId string
+//   - userId   (required) MongoDB ObjectId string
+// On success: parses EXIF for GPS + DateTimeOriginal, writes the file to
+// /public/uploads/<uuid>.<ext>, persists a proof document with
+// verification.{status,reason,checkedAt,distanceMeters}, and if the goal
+// is a verified "single" goal, auto-resolves it to succeeded.
+
+const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
+
+async function ensureUploadDir() {
+  try {
+    await fs.mkdir(UPLOAD_DIR, { recursive: true });
+  } catch (err) {
+    if (err?.code !== "EEXIST") throw err;
+  }
 }
 
-function isHttpUrl(value) {
-  try {
-    const u = new URL(value);
-    return u.protocol === "http:" || u.protocol === "https:";
-  } catch {
-    return false;
-  }
+function extFromMime(mime) {
+  if (mime === "image/jpeg") return ".jpg";
+  if (mime === "image/png") return ".png";
+  if (mime === "image/webp") return ".webp";
+  if (mime === "image/heic" || mime === "image/heif") return ".heic";
+  return ".bin";
 }
 
 export async function POST(request) {
   try {
-    let body;
-    try {
-      body = await request.json();
-    } catch {
+    // Tolerant parsing: fall back to JSON for back-compat during migration.
+    const contentType = request.headers.get("content-type") || "";
+
+    let goalId, userId, imageFile, imageUrlOverride;
+
+    if (contentType.includes("multipart/form-data")) {
+      let form;
+      try {
+        form = await request.formData();
+      } catch {
+        return NextResponse.json(
+          { error: "Invalid multipart body" },
+          { status: 400 }
+        );
+      }
+      goalId = form.get("goalId");
+      userId = form.get("userId");
+      imageFile = form.get("file");
+      if (!(imageFile instanceof Blob)) {
+        return NextResponse.json(
+          { error: 'Field "file" (an image) is required' },
+          { status: 400 }
+        );
+      }
+    } else if (contentType.includes("application/json")) {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return NextResponse.json(
+          { error: "Invalid JSON body" },
+          { status: 400 }
+        );
+      }
+      goalId = body?.goalId;
+      userId = body?.userId;
+      imageUrlOverride = body?.imageUrl; // legacy path, no EXIF verification possible
+    } else {
       return NextResponse.json(
-        { error: "Invalid JSON body" },
+        { error: "Content-Type must be multipart/form-data or application/json" },
         { status: 400 }
       );
     }
 
-    const goalId = body?.goalId;
-    const userId = body?.userId;
-    const imageUrl = body?.imageUrl;
-
-    if (!goalId || !ObjectId.isValid(goalId)) {
+    if (typeof goalId !== "string" || !ObjectId.isValid(goalId)) {
       return NextResponse.json(
         { error: 'Field "goalId" must be a valid MongoDB ObjectId string' },
         { status: 400 }
       );
     }
-
-    if (!userId || !ObjectId.isValid(userId)) {
+    if (typeof userId !== "string" || !ObjectId.isValid(userId)) {
       return NextResponse.json(
         { error: 'Field "userId" must be a valid MongoDB ObjectId string' },
-        { status: 400 }
-      );
-    }
-
-    if (!isNonEmptyString(imageUrl) || !isHttpUrl(imageUrl.trim())) {
-      return NextResponse.json(
-        {
-          error:
-            'Field "imageUrl" must be a non-empty http(s) URL string',
-        },
         { status: 400 }
       );
     }
@@ -60,11 +99,9 @@ export async function POST(request) {
     const proofs = db.collection("proofs");
 
     const goal = await goals.findOne({ _id: new ObjectId(goalId) });
-
     if (!goal) {
       return NextResponse.json({ error: "Goal not found" }, { status: 404 });
     }
-
     const userObjectId = new ObjectId(userId);
     if (!goal.userId.equals(userObjectId)) {
       return NextResponse.json(
@@ -73,32 +110,115 @@ export async function POST(request) {
       );
     }
 
+    let imageUrl = null;
+    let capturedAt = null;
+    let gps = null;
+
+    if (imageFile) {
+      const arrayBuffer = await imageFile.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      // exifr.parse returns { GPSLatitude, GPSLongitude, DateTimeOriginal, ... }
+      // with GPS already converted to decimal. Some phones strip GPS on web
+      // upload — that's caught below.
+      let exifData = {};
+      try {
+        exifData = (await exifr.parse(buffer, { gps: true })) || {};
+      } catch {
+        exifData = {};
+      }
+
+      const lat = exifData.latitude ?? exifData.GPSLatitude ?? null;
+      const lng = exifData.longitude ?? exifData.GPSLongitude ?? null;
+      if (typeof lat === "number" && typeof lng === "number") {
+        gps = { lat, lng, accuracyMeters: null };
+      }
+      if (exifData.DateTimeOriginal) {
+        capturedAt = new Date(exifData.DateTimeOriginal);
+      } else if (exifData.CreateDate) {
+        capturedAt = new Date(exifData.CreateDate);
+      }
+
+      await ensureUploadDir();
+      const ext = extFromMime(imageFile.type);
+      const filename = `${crypto.randomUUID()}${ext}`;
+      const diskPath = path.join(UPLOAD_DIR, filename);
+      await fs.writeFile(diskPath, buffer);
+      imageUrl = `/uploads/${filename}`;
+    } else {
+      imageUrl = imageUrlOverride ?? null;
+    }
+
+    const verdict = verifyProof(goal, { gps, capturedAt });
+    const createdAt = new Date();
+
     await proofs.createIndex({ goalId: 1 });
 
-    const createdAt = new Date();
     const doc = {
       goalId: new ObjectId(goalId),
       userId: userObjectId,
-      imageUrl: imageUrl.trim(),
+      imageUrl,
+      capturedAt,
+      gps,
       createdAt,
+      verification: {
+        status: verdict.ok ? "verified" : "rejected",
+        reason: verdict.reason,
+        checkedAt: createdAt,
+        distanceMeters: verdict.distanceMeters,
+      },
     };
 
-    const result = await proofs.insertOne(doc);
+    const insertResult = await proofs.insertOne(doc);
+
+    // Decision #6: auto-resolve on verified proof. Single goals complete
+    // immediately; recurring would bump a counter here (not implemented yet).
+    let resolution = null;
+    if (verdict.ok && goal.type === "single" && goal.status === "active") {
+      try {
+        const { goal: resolvedGoal } = await resolveGoal(
+          goalId,
+          "succeeded",
+          "system"
+        );
+        resolution = {
+          status: resolvedGoal?.status ?? null,
+          escrowState: resolvedGoal?.escrowState ?? null,
+          resolvedAt: resolvedGoal?.resolvedAt
+            ? new Date(resolvedGoal.resolvedAt).toISOString()
+            : null,
+        };
+      } catch (resolveErr) {
+        // We still return the proof — resolution failure shouldn't throw
+        // away the uploaded proof record.
+        console.error("[proofs/upload] auto-resolve failed", resolveErr);
+        resolution = { error: String(resolveErr?.message || resolveErr) };
+      }
+    }
 
     return NextResponse.json(
       {
-        id: result.insertedId.toString(),
+        id: insertResult.insertedId.toString(),
         goalId: doc.goalId.toString(),
         userId: doc.userId.toString(),
         imageUrl: doc.imageUrl,
+        capturedAt: doc.capturedAt ? doc.capturedAt.toISOString() : null,
+        gps: doc.gps,
         createdAt: doc.createdAt.toISOString(),
+        verification: {
+          status: doc.verification.status,
+          reason: doc.verification.reason,
+          checkedAt: doc.verification.checkedAt.toISOString(),
+          distanceMeters: doc.verification.distanceMeters,
+        },
+        resolution,
       },
       { status: 201 }
     );
   } catch (err) {
     console.error("[POST /api/proofs/upload]", err);
     return NextResponse.json(
-      { error: "Failed to store proof" },
+      { error: "Failed to store proof", detail: String(err?.message || err) },
       { status: 500 }
     );
   }

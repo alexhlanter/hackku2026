@@ -2,6 +2,43 @@ import { NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { getDb } from "@/lib/mongodb";
 
+function toIsoOrNull(value) {
+  if (!value) return null;
+  if (value instanceof Date) return value.toISOString();
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+function serializeGoal(g) {
+  return {
+    id: g._id.toString(),
+    userId: g.userId?.toString?.() ?? null,
+    title: g.title,
+    stakeAmount: g.stakeAmount,
+    deadline: toIsoOrNull(g.deadline),
+    status: g.status,
+    escrowState: g.escrowState ?? null,
+    createdAt: toIsoOrNull(g.createdAt),
+    type: g.type ?? null,
+    location: g.location ?? null,
+    target: g.target
+      ? {
+          targetAt: toIsoOrNull(g.target.targetAt),
+          windowMinutes: g.target.windowMinutes ?? null,
+          startAt: toIsoOrNull(g.target.startAt),
+          endAt: toIsoOrNull(g.target.endAt),
+          requiredCount: g.target.requiredCount ?? null,
+          minSpacingHours: g.target.minSpacingHours ?? null,
+        }
+      : null,
+    charity: g.charity ?? null,
+    ownerAddress: g.ownerAddress ?? null,
+    escrow: g.escrow ?? null,
+    resolvedAt: toIsoOrNull(g.resolvedAt),
+    resolvedBy: g.resolvedBy ?? null,
+  };
+}
+
 export async function GET(_request, context) {
   const { userId } = await context.params;
 
@@ -19,17 +56,7 @@ export async function GET(_request, context) {
 
     const list = await cursor.toArray();
 
-    const goalsJson = list.map((g) => ({
-      id: g._id.toString(),
-      userId: g.userId.toString(),
-      title: g.title,
-      stakeAmount: g.stakeAmount,
-      deadline: g.deadline?.toISOString?.() ?? null,
-      status: g.status,
-      createdAt: g.createdAt?.toISOString?.() ?? null,
-    }));
-
-    return NextResponse.json({ goals: goalsJson });
+    return NextResponse.json({ goals: list.map(serializeGoal) });
   } catch (err) {
     console.error("[GET /api/goals/user/[userId]]", err);
     return NextResponse.json(

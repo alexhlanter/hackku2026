@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Wallet } from "xrpl";
 import { getDb } from "@/lib/mongodb";
 
 function isNonEmptyString(value) {
@@ -7,6 +8,19 @@ function isNonEmptyString(value) {
 
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+// Cached so we don't re-derive the address on every request. The seed
+// doesn't change within a process lifetime.
+let cachedSharedWalletAddress = null;
+function getSharedWalletAddress() {
+  if (cachedSharedWalletAddress) return cachedSharedWalletAddress;
+  const seed = process.env.USER_WALLET_SEED;
+  if (!seed) {
+    throw new Error("USER_WALLET_SEED is not set");
+  }
+  cachedSharedWalletAddress = Wallet.fromSeed(seed).address;
+  return cachedSharedWalletAddress;
 }
 
 export async function POST(request) {
@@ -22,20 +36,31 @@ export async function POST(request) {
     }
 
     const email = body?.email;
-    const walletAddress = body?.walletAddress;
 
-    if (!isNonEmptyString(email) || !isNonEmptyString(walletAddress)) {
+    if (!isNonEmptyString(email)) {
       return NextResponse.json(
-        { error: 'Fields "email" and "walletAddress" are required strings' },
+        { error: 'Field "email" is required' },
         { status: 400 }
       );
     }
 
     const trimmedEmail = email.trim().toLowerCase();
-    const trimmedWallet = walletAddress.trim();
-
     if (!isValidEmail(trimmedEmail)) {
       return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
+    }
+
+    // Decision #4: wallet address is derived server-side from USER_WALLET_SEED.
+    // We ignore any client-supplied walletAddress to prevent user-controlled
+    // junk from ever ending up on goal.ownerAddress.
+    let walletAddress;
+    try {
+      walletAddress = getSharedWalletAddress();
+    } catch (err) {
+      console.error("[POST /api/users/create] wallet derivation failed", err);
+      return NextResponse.json(
+        { error: "Server XRPL config missing (USER_WALLET_SEED)" },
+        { status: 500 }
+      );
     }
 
     const db = await getDb();
@@ -46,7 +71,7 @@ export async function POST(request) {
     const createdAt = new Date();
     const doc = {
       email: trimmedEmail,
-      walletAddress: trimmedWallet,
+      walletAddress,
       createdAt,
     };
 

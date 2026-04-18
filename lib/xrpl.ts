@@ -30,7 +30,7 @@ function dateToRippleTime(date: Date): number {
 export async function createEscrow(
   params: CreateEscrowParams
 ): Promise<CreateEscrowResult> {
-  const { userSeed, potAddress, amountXRP, deadline } = params;
+  const { userSeed, destinationAddress, amountXRP, deadline } = params;
 
   // We place FinishAfter 5 seconds ahead of wall-clock time (see comment
   // below), and require CancelAfter to be comfortably after that.
@@ -65,7 +65,7 @@ export async function createEscrow(
     const prepared = await client.autofill({
       TransactionType: "EscrowCreate",
       Account: wallet.address,
-      Destination: potAddress,
+      Destination: destinationAddress,
       Amount: amountDrops,
       FinishAfter: finishAfter,
       CancelAfter: cancelAfter,

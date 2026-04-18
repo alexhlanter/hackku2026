@@ -1,11 +1,13 @@
-// creates the escrow parameters for create escroe
-// userseed is the seed of the user who is creating the escrow
-// potaddress is the address of the pot wallet
-// amountxrp is the amount of xrp to escrow
-// deadline is the deadline of the escrow
+// Parameters for createEscrow.
+// - userSeed:            the seed of the user staking the XRP.
+// - destinationAddress:  where the funds go on EscrowFinish. Under Option B
+//                        (see SCHEMA.md) this is the charity's XRPL address,
+//                        NOT the pot. The pot wallet is only a signer/fee-payer.
+// - amountXRP:           stake amount as a decimal string (converted to drops).
+// - deadline:            goal deadline; sets on-chain CancelAfter.
 export interface CreateEscrowParams {
   userSeed: string;
-  potAddress: string;
+  destinationAddress: string;
   amountXRP: string;
   deadline: Date;
 }

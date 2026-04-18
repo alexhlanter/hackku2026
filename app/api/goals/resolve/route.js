@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
-import { getDb } from "@/lib/mongodb";
+import { resolveGoal } from "@/lib/resolve";
 
-const ALLOWED = new Set(["success", "failed"]);
+// Manual escape hatch for demos / admin. The auto-resolve path lives in
+// the proof upload handler (success case) and in a deadline sweep
+// (fail case, future work). Both go through lib/resolve.js#resolveGoal.
+
+const ALLOWED = new Set(["succeeded", "failed"]);
 
 export async function POST(request) {
   try {
@@ -17,7 +21,7 @@ export async function POST(request) {
     }
 
     const goalId = body?.goalId;
-    const status = body?.status;
+    const outcome = body?.outcome ?? body?.status;
 
     if (!goalId || !ObjectId.isValid(goalId)) {
       return NextResponse.json(
@@ -26,45 +30,52 @@ export async function POST(request) {
       );
     }
 
-    if (typeof status !== "string" || !ALLOWED.has(status)) {
+    // Back-compat: accept "success" from older callers but map to "succeeded".
+    const normalized =
+      outcome === "success" ? "succeeded" : outcome === "fail" ? "failed" : outcome;
+
+    if (typeof normalized !== "string" || !ALLOWED.has(normalized)) {
       return NextResponse.json(
-        { error: 'Field "status" must be "success" or "failed"' },
+        { error: 'Field "outcome" must be "succeeded" or "failed"' },
         { status: 400 }
       );
     }
 
-    const db = await getDb();
-    const goals = db.collection("goals");
-
-    const updated = await goals.findOneAndUpdate(
-      { _id: new ObjectId(goalId), status: "active" },
-      { $set: { status } },
-      { returnDocument: "after" }
-    );
-
-    if (!updated) {
-      return NextResponse.json(
-        {
-          error:
-            "Goal not found or already resolved (only active goals can be resolved)",
-        },
-        { status: 404 }
+    try {
+      const { goal, alreadyResolved } = await resolveGoal(
+        goalId,
+        normalized,
+        "system"
       );
+      if (!goal) {
+        return NextResponse.json(
+          { error: "Goal not found" },
+          { status: 404 }
+        );
+      }
+      return NextResponse.json({
+        id: goal._id.toString(),
+        userId: goal.userId?.toString?.() ?? null,
+        status: goal.status,
+        escrowState: goal.escrowState ?? null,
+        resolvedAt: goal.resolvedAt ? new Date(goal.resolvedAt).toISOString() : null,
+        resolvedBy: goal.resolvedBy ?? null,
+        escrow: goal.escrow ?? null,
+        alreadyResolved,
+      });
+    } catch (resolveErr) {
+      if (/goal not found/i.test(String(resolveErr?.message))) {
+        return NextResponse.json({ error: "Goal not found" }, { status: 404 });
+      }
+      throw resolveErr;
     }
-
-    return NextResponse.json({
-      id: updated._id.toString(),
-      userId: updated.userId.toString(),
-      title: updated.title,
-      stakeAmount: updated.stakeAmount,
-      deadline: updated.deadline?.toISOString?.() ?? null,
-      status: updated.status,
-      createdAt: updated.createdAt?.toISOString?.() ?? null,
-    });
   } catch (err) {
     console.error("[POST /api/goals/resolve]", err);
     return NextResponse.json(
-      { error: "Failed to resolve goal" },
+      {
+        error: "Failed to resolve goal",
+        detail: String(err?.message || err),
+      },
       { status: 500 }
     );
   }
