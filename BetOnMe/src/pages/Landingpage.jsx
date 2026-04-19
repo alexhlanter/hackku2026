@@ -1,5 +1,7 @@
 import "./Landingpage.css";
-
+import addbet from '../assets/addbet.png';
+import progress from '../assets/progress.png';
+import weekview from '../assets/weekview.png';
 
 export default function Landing() {
   return (
@@ -29,24 +31,17 @@ export default function Landing() {
       <section className="photos-section">
         <div className="photos-grid">
           <div className="photo-card">
-            <div className="photo-placeholder">
-              {/* Replace with: <img src="your-image.jpg" alt="description" /> */}
-              Photo 1
-            </div>
+            <img src={addbet} alt="add a bet" className="photo-img" />
             <h3>Add a bet</h3>
             <p>Choose your goal, focus, and check in when you're done.</p>
           </div>
           <div className="photo-card">
-            <div className="photo-placeholder">
-              Photo 2
-            </div>
+            <img src={progress} alt="add a bet" className="photo-img" />
             <h3>Prove yourself right</h3>
             <p>Keep track of how many goals you've completed in a row and your record.</p>
           </div>
           <div className="photo-card">
-            <div className="photo-placeholder">
-                Photo 3
-            </div>
+            <img src={weekview} alt="add a bet" className="photo-img" />
             <h3>Track your habits</h3>
             <p>Complete your goal, get paid back.</p>
             </div>
